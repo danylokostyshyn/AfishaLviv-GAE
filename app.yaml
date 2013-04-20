@@ -1,0 +1,15 @@
+application: afishalvivparser
+version: 4
+runtime: python27
+api_version: 1
+threadsafe: true
+
+libraries:
+- name: lxml
+  version: "2.3"
+- name: django
+  version: "1.2"
+
+handlers:
+- url: .*
+  script: afishalvivparser.app
