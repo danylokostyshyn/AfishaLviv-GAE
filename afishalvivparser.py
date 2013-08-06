@@ -185,7 +185,7 @@ class PlacesPage(webapp2.RequestHandler):
             self.response.out.write(items_json)
         else:
             items_json = self.getPlacesByType(type_string)
-            memcache.add(type_string, items_json, 60*60*24*7)
+            memcache.add(type_string, items_json, 60*60*24)
             self.response.out.write(items_json)
 
     def getPlacesAtPage(self, page, place_type):
@@ -271,7 +271,7 @@ class PlaceInfoPage(webapp2.RequestHandler):
             self.response.out.write(place_info_json)
         else: 
             place_info_json = self.getPlaceExtendedInfo(place_url)
-            memcache.add(place_url, place_info_json, 60*60*24*7)
+            memcache.add(place_url, place_info_json, 60*60*24)
             self.response.out.write(place_info_json)
 
     def getPlaceExtendedInfo(self, place_url):
@@ -350,6 +350,120 @@ class PlaceInfoPage(webapp2.RequestHandler):
 #########################################################################################################################################################
 #########################################################################################################################################################
 
+class TopEvents(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'application/json'
+
+        items_json = memcache.get("top_events")
+        if items_json is not None:
+            self.response.out.write(items_json)
+        else:
+            items_json = self.getTopEvents()
+            memcache.add("top_events", items_json, 60*60*3)
+            self.response.out.write(items_json)
+
+    def getTopEvents(self):
+        top_events_url = "http://afishalviv.net"
+        logging.info("url: %s", top_events_url)
+
+        url = urllib.urlopen(top_events_url)
+        html_page = html.parse(url)
+        root = html_page.getroot()
+
+        items = []
+        li_nodes = root.xpath("//div[@class='topnewstype']/div/ul/li")
+        for li_node in li_nodes:            
+            node_id = (li_node.xpath("@id"))[0]
+            node_url = ((li_node.xpath("a/@href"))[0])[2:]
+            node_title = (li_node.xpath("a/@title"))[0]
+
+            index = li_nodes.index(li_node)
+            xpath_query = "//div[@class='topnewstype']/div/div[{0}]/a/img/@src".format(index+1)
+
+            try:
+                node_thumb_img = root.xpath(xpath_query)[0]
+                node_thumb_img = "http://afishalviv.net/{0}".format(node_thumb_img)
+            except:
+                node_thumb_img = ''
+
+            # gallery with multiple images 
+            if not (node_thumb_img.__len__() > 0):
+                try:
+                    xpath_query = "//div[@class='topNews']/div[@class='topnewstype']/div[@class='leftCol']/div[{0}]//div[@class='photoview']/ul/li[1]/img/@src".format(index+1)
+                    node_thumb_img = root.xpath(xpath_query)[0]
+                except:
+                    node_thumb_img = ''
+
+            xpath_query = "//div[@class='topNews']/div[@class='topnewstype']/div[@class='leftCol']/div[{0}]/@type".format(index+1)
+            node_type = root.xpath(xpath_query)[0]
+
+            items.append({
+                "id":node_id,
+                "url":node_url,
+                "title":node_title,
+                "thumb_img":node_thumb_img,
+                "type":node_type                
+                })
+            
+        return simplejson.dumps(items, ensure_ascii=False, indent=4, sort_keys=True);
+
+class Photos(webapp2.RequestHandler):
+    def get(self):
+        self.response.headers['Content-Type'] = 'application/json'
+
+        photos_url = self.request.query_string
+        photos_url_json = memcache.get(photos_url)
+        if photos_url_json is not None:
+            self.response.out.write(photos_url_json)
+        else: 
+            photos_url_json = self.getPhotos(photos_url)
+            memcache.add(photos_url, photos_url_json, 60*60*24*7)
+            self.response.out.write(photos_url_json)
+
+    def getPhotos(self, photos_url):
+        logging.info("photos url: %s", photos_url)
+
+        url = urllib.urlopen(photos_url)
+        html_page = html.parse(url)
+        root = html_page.getroot()
+
+        title = root.xpath("//div[@class='photoGallery']/h2")[0].text_content()
+
+        # get images
+        img_urls = []
+        imgs_count = root.xpath("//div[@class='small_imgpreview']/ul/li").__len__()
+        for i in xrange(1, imgs_count+1):
+            try:
+                xpath_query = "//div[@class='small_imgpreview']/ul/li[{0}]/a/img/@src".format(i)
+                thumb_url = root.xpath(xpath_query)[0]
+
+                xpath_query = "//div[@id='jqgallery1']/div[@class='photoview']/ul/li[{0}]/img/@src".format(i)
+                img_url = root.xpath(xpath_query)[0]
+                
+                img_urls.append({"img":img_url, "thumb":thumb_url})
+            except:
+                None
+        
+        # get description
+        try:
+            desc = root.xpath("//div[@class='desc']")[0].text_content()
+        except:
+            desc = ''
+
+        result = {
+            "title":title,
+            "desc":desc,
+            "imgs":img_urls            
+        }
+
+        return simplejson.dumps(result, ensure_ascii=False, indent=4, sort_keys=True);        
+
+#########################################################################################################################################################
+#########################################################################################################################################################
+#########################################################################################################################################################
+#########################################################################################################################################################
+#########################################################################################################################################################
+
 class FlushMemcachePage(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -364,17 +478,22 @@ class FlushMemcachePage(webapp2.RequestHandler):
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        self.response.out.write('@danylokostyshyn\n')
-        self.response.out.write('\n/events?YYYY-MM-DD\n')
-        self.response.out.write('\n/event_info?%EVENT_URL%\n')
-        self.response.out.write('\n/places?TYPE //{restaurant, museum, gallery, theater, cinema, club, hall}\n')
-        self.response.out.write('\n/place_info?%PLACE_URL%\n') 
+        self.response.headers['Content-Type'] = 'text/html'
+        self.response.out.write('<head><style>p.courier{font-family:"Courier New", Courier, monospace}</style></head>')
+        self.response.out.write('<p class="courier"><a href="https://twitter.com/danylokostyshyn">@danylokostyshyn</a></p>')
+        self.response.out.write('<p class="courier">/events?%YYYY-MM-DD%</p>')
+        self.response.out.write('<p class="courier">/event_info?%EVENT_URL%</p>')
+        self.response.out.write('<p class="courier">/places?%TYPE% //{restaurant, museum, gallery, theater, cinema, club, hall}<p>')
+        self.response.out.write('<p class="courier">/place_info?%PLACE_URL%<p>') 
+        self.response.out.write('<p class="courier">/top_events</p>')
+        self.response.out.write('<p class="courier">/photos?%PHOTOS_URL%</p>')
 
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/events', EventsPage),
                                ('/event_info', EventInfoPage),
-                               ('/places', PlacesPage),
+                               ('/top_events', TopEvents),
                                ('/place_info', PlaceInfoPage),
+                               ('/places', PlacesPage),
+                               ('/photos', Photos),
                                ('/flush_memcache', FlushMemcachePage)],
                               debug=True)
