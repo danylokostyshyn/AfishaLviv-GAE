@@ -17,12 +17,6 @@ from django.utils import simplejson
 
 from utils import Decoder
 
-class FlushMemcachePage(webapp2.RequestHandler):
-    def get(self):
-        self.response.headers['Content-Type'] = 'text/plain'
-        memcache.flush_all()
-        self.response.out.write("flushing memcache done!")
-
 class EventsPage(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'application/json'
@@ -94,7 +88,6 @@ class EventsPage(webapp2.RequestHandler):
         items_json = simplejson.dumps(items, ensure_ascii=False, indent=4, sort_keys=True)
 
         return items_json
-
 
 class EventInfoPage(webapp2.RequestHandler):
     def get(self):

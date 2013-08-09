@@ -6,6 +6,12 @@ import webapp2
 
 from parser import *
 
+class FlushMemcachePage(webapp2.RequestHandler):
+    def get(self):
+        memcache.flush_all()
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.out.write("flushing memcache done!")
+
 class MainPage(webapp2.RequestHandler):
     def get(self):
         path = os.path.join(os.path.split(__file__)[0], 'index.html')
