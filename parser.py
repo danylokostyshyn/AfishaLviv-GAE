@@ -15,6 +15,8 @@ from google.appengine.api import memcache
 
 from django.utils import simplejson
 
+from utils import Decoder
+
 class FlushMemcachePage(webapp2.RequestHandler):
     def get(self):
         self.response.headers['Content-Type'] = 'text/plain'
@@ -87,7 +89,7 @@ class EventsPage(webapp2.RequestHandler):
                 
                 items.append(current_event)
             except: 
-                logging.info("no events: %s", events_page_url)
+                logging.warning("no events: %s", events_page_url)
 
         items_json = simplejson.dumps(items, ensure_ascii=False, indent=4, sort_keys=True)
 
@@ -148,7 +150,7 @@ class EventInfoPage(webapp2.RequestHandler):
                 if (tmp == "null"): tmp = ""
                 tmp = tmp + tostring(pTag)
             
-            current_text = (decode_unicode_references(tmp))
+            current_text = (Decoder.decode_unicode_references(tmp))
 
             extended_info = {"title":current_title, 
                             "url":event_url, 
@@ -164,7 +166,7 @@ class EventInfoPage(webapp2.RequestHandler):
             extended_info_json = simplejson.dumps(extended_info, ensure_ascii=False, indent=4, sort_keys=True)
 
         except: 
-            logging.info("failed at event: %s", event_url)
+            logging.error("failed at event: %s", event_url)
             return []
 
         return extended_info_json
@@ -217,7 +219,7 @@ class PlacesPage(webapp2.RequestHandler):
                 
                 items.append(current_place)
             except: 
-                logging.info("no places: %s", page)
+                logging.warning("no places: %s", page)
 
         return items
     
@@ -317,7 +319,7 @@ class PlaceInfoPage(webapp2.RequestHandler):
                 if (tmp == "null"): tmp = ""
                 tmp = tmp + tostring(pTag)
             
-            current_text = (decode_unicode_references(tmp))
+            current_text = (Decoder.decode_unicode_references(tmp))
                         
             extended_info = {"title":current_title,
                             "url":place_url,
@@ -334,7 +336,7 @@ class PlaceInfoPage(webapp2.RequestHandler):
             extended_info_json = simplejson.dumps(extended_info, ensure_ascii=False, indent=4, sort_keys=True)
 
         except: 
-            logging.info ("failed at place: %s", place_url)
+            logging.error ("failed at place: %s", place_url)
             return []
 
         return extended_info_json
