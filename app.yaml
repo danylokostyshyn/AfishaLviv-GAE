@@ -1,5 +1,5 @@
 application: afishalvivparser
-version: 5
+version: 6
 runtime: python27
 api_version: 1
 threadsafe: true
@@ -12,4 +12,4 @@ libraries:
 
 handlers:
 - url: .*
-  script: afishalvivparser.app
+  script: main.app
